@@ -4,6 +4,7 @@ use dokuwiki\Extension\ActionPlugin;
 use dokuwiki\Extension\Event;
 use dokuwiki\Extension\EventHandler;
 use dokuwiki\Form\HTMLElement;
+use Caxy\HtmlDiff\HtmlDiff;
 
 /**
  * DokuWiki Plugin renderrevisions (Action Component)
@@ -133,6 +134,11 @@ class action_plugin_renderrevisions_revisions extends ActionPlugin
         echo '<div class="renderrevisions">';
         echo $intro;
         echo '</div>';
-        echo $content;
+        //echo $content;
+
+        $current = p_cached_output(wikiFN($INFO['id']), 'xhtml', $INFO['id']);
+
+        $htmlDiff = new HtmlDiff($content, $current);
+        echo $htmlDiff->build();
     }
 }
