@@ -29,7 +29,7 @@ class cli_plugin_renderrevisions extends \dokuwiki\Extension\CLIPlugin
         $indexer = new Indexer();
         $pages = $indexer->getPages();
 
-        $action = plugin_load('action', 'renderrevisions');
+        $action = plugin_load('action', 'renderrevisions_save');
         [$skipRE, $matchRE] = $action->getRegexps();
 
         foreach ($pages as $page) {

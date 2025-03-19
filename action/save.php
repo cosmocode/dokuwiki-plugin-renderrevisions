@@ -11,7 +11,7 @@ use dokuwiki\File\PageFile;
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  * @author Andreas Gohr <dokuwiki@cosmocode.de>
  */
-class action_plugin_renderrevisions extends ActionPlugin
+class action_plugin_renderrevisions_save extends ActionPlugin
 {
     /** @var array list of pages that are processed by the plugin */
     protected $pages = [];
