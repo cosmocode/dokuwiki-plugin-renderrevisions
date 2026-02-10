@@ -1,5 +1,6 @@
 <?php
 
+use dokuwiki\Logger;
 use dokuwiki\Extension\ActionPlugin;
 use dokuwiki\Extension\Event;
 use dokuwiki\Extension\EventHandler;
@@ -107,16 +108,24 @@ class action_plugin_renderrevisions_save extends ActionPlugin
         $md5cache = getCacheName($ID, '.renderrevision');
         $md5xhtml = $this->getContentHash($xhtml);
 
+        // depending on config, load storage helper
+        /** @var helper_plugin_renderrevisions_storage $storage */
+        $storage = $this->getConf('store') ? plugin_load('helper', 'renderrevisions_storage') : null;
+
         // no or outdated MD5 cache, create new one
         // this means a new revision of the page has been created naturally
         // we store the new render result and are done
         if (!file_exists($md5cache) || filemtime(wikiFN($ID)) > filemtime($md5cache)) {
             file_put_contents($md5cache, $md5xhtml);
+            $this->logDebug($ID . ' Wrote render hash cache: path=' . $md5cache . ' hash=' . $md5xhtml);
 
-            if ($this->getConf('store')) {
-                /** @var helper_plugin_renderrevisions_storage $storage */
-                $storage = plugin_load('helper', 'renderrevisions_storage');
+            if ($storage) {
                 $storage->saveRevision($ID, filemtime(wikiFN($ID)), $xhtml);
+                $this->logDebug(
+                    $ID . ' Found new revision and stored render for rev=' . filemtime(wikiFN($ID)) .
+                    ' in ' . $storage->getFilename($ID, filemtime(wikiFN($ID)))
+                );
+
                 $storage->cleanUp($ID);
             }
 
@@ -137,8 +146,23 @@ class action_plugin_renderrevisions_save extends ActionPlugin
         }
 
         // time to create a new revision
+        $oldPageMtime = filemtime(wikiFN($ID));
         $this->current = $ID;
         (new PageFile($ID))->saveWikiText(rawWiki($ID), $this->getLang('summary'));
+
+        $this->logDebug($ID . ' Created new wiki revision');
+
+        if ($storage) {
+            $diff = $this->getRenderDiff($storage->getRevision($ID, $oldPageMtime), $xhtml);
+            $this->logDebug(
+                $ID . ' Render diff between stored rev ' . $oldPageMtime .
+                ' (' . $storage->getFilename($ID, $oldPageMtime) . ') vs current:' . "\n" . $diff
+            );
+        } else {
+            $this->logDebug($ID . ' Render diff unavailable: no stored render for rev ' . filemtime(wikiFN($ID)));
+        }
+
+
         $this->current = null;
     }
 
@@ -198,8 +222,41 @@ class action_plugin_renderrevisions_save extends ActionPlugin
      *
      * @param string $xhtml
      */
-    protected function getContentHash($xhtml): string
+    protected function getContentHash(string $xhtml): string
     {
         return md5(preg_replace('/\s+/', '', strip_tags($xhtml)));
+    }
+
+    /**
+     * Log a message when debug logging is enabled
+     *
+     * @param string $message
+     * @return void
+     */
+    protected function logDebug(string $message)
+    {
+        if (!$this->getConf('debug')) return;
+        $logger = Logger::getInstance('renderrevisions');
+        $logger->log($message);
+    }
+
+    /**
+     * Build a render diff for logging purposes
+     *
+     * @param string $before
+     * @param string $after
+     * @return string
+     */
+    protected function getRenderDiff(string $before, string $after): string
+    {
+        if ($before === $after) return 'No render diff (content identical).';
+
+        $Difference = new \Diff(
+            explode("\n", $before),
+            explode("\n", $after)
+        );
+
+        $DiffFormatter = new UnifiedDiffFormatter();
+        return $DiffFormatter->format($Difference);
     }
 }

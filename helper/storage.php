@@ -47,7 +47,7 @@ class helper_plugin_renderrevisions_storage extends Plugin
      */
     public function getRevision($id, $rev)
     {
-        if(!$this->hasRevision($id, $rev)) return false;
+        if (!$this->hasRevision($id, $rev)) return false;
         $file = $this->getFilename($id, $rev);
         return file_get_contents($file);
     }
