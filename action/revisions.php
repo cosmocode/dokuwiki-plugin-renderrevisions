@@ -16,7 +16,7 @@ class action_plugin_renderrevisions_revisions extends ActionPlugin
     /** @inheritDoc */
     public function register(EventHandler $controller)
     {
-        if($this->getConf('store')) {
+        if ($this->getConf('store')) {
             $controller->register_hook('FORM_REVISIONS_OUTPUT', 'BEFORE', $this, 'handleRevisions');
             $controller->register_hook('ACTION_ACT_PREPROCESS', 'BEFORE', $this, 'handleActPreprocess');
             $controller->register_hook('TPL_ACT_UNKNOWN', 'BEFORE', $this, 'handleActUnknown');
@@ -84,7 +84,7 @@ class action_plugin_renderrevisions_revisions extends ActionPlugin
         }
 
         // check permissions
-        if(auth_quickaclcheck($INFO['id']) < AUTH_READ) {
+        if (auth_quickaclcheck($INFO['id']) < AUTH_READ) {
             $event->data = 'denied';
             return;
         }
