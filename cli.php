@@ -21,6 +21,8 @@ class cli_plugin_renderrevisions extends \dokuwiki\Extension\CLIPlugin
             "and re-render them if necessary. This will trigger the renderrevisions plugin mechanism to create " .
             "a new revision of the page if the content changed."
         );
+        $options->registerArgument("page_id", "The page id that will be processed. " .
+        "Leave empty for process all pages.", false);
     }
 
     /** @inheritDoc */
@@ -32,31 +34,38 @@ class cli_plugin_renderrevisions extends \dokuwiki\Extension\CLIPlugin
 
         auth_setup(); // make sure ACLs are initialized
 
-        $indexer = new Indexer();
-        $pages = $indexer->getPages();
+        $args = $options->getArgs();
 
-        $action = plugin_load('action', 'renderrevisions_save');
-        [$skipRE, $matchRE] = $action->getRegexps();
+        if (isset($args[0])) { // process the single page
+            $page = $args[0];
 
-        foreach ($pages as $page) {
+            $action = plugin_load('action', 'renderrevisions_save');
+            [$skipRE, $matchRE] = $action->getRegexps();
             if (
                 ($skipRE && preg_match($skipRE, ":$page")) ||
                 ($matchRE && !preg_match($matchRE, ":$page"))
             ) {
                 $this->info("Skipping $page");
-                continue;
+            } else {
+                $this->notice("Processing $page");
+                $file = wikiFN($page);
+                try {
+                    $ID = $page;
+                    $INFO = pageinfo();
+                    $ACT = 'show';
+
+                    p_cached_output($file, 'xhtml', $page);
+                } catch (\Exception $e) {
+                    $this->error("Issues while rendering $page: " . $e->getMessage());
+                }
             }
-
-            $this->notice("Processing $page");
-            $file = wikiFN($page);
-            try {
-                $ID = $page;
-                $INFO = pageinfo();
-                $ACT = 'show';
-
-                p_cached_output($file, 'xhtml', $page);
-            } catch (\Exception $e) {
-                $this->error("Issues while rendering $page: " . $e->getMessage());
+        } else { // run for all pages
+            $indexer = new Indexer();
+            $pages = $indexer->getPages();
+            foreach ($pages as $page) {
+                $cmd = PHP_BINARY . ' ' . $_SERVER['SCRIPT_FILENAME'] . ' renderrevisions ' . $page;
+                $output = shell_exec($cmd);
+                $this->notice($output);
             }
         }
     }
